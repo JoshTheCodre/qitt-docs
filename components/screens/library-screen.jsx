@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import TopNav from "@/components/top-nav"
 
-export default function LibraryScreen({ user, onNavigate }) {
+export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
   const [downloads, setDownloads] = useState([])
   const [uploads, setUploads] = useState([])
 
@@ -64,7 +64,10 @@ export default function LibraryScreen({ user, onNavigate }) {
   }
 
   const ResourceCard = ({ resource, showDownload = false }) => (
-    <Card className="rounded-xl card-shadow hover:shadow-lg transition-shadow bg-white">
+    <Card 
+      className="rounded-xl card-shadow hover:shadow-lg transition-shadow bg-white cursor-pointer"
+      onClick={() => onResourceSelect(resource)}
+    >
       <CardContent className="p-4">
         <div className="flex space-x-4">
           <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -84,7 +87,10 @@ export default function LibraryScreen({ user, onNavigate }) {
           </div>
           {showDownload && (
             <Button
-              onClick={() => handleDownload(resource)}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleDownload(resource)
+              }}
               size="sm"
               className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
             >

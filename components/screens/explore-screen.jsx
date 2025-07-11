@@ -71,7 +71,7 @@ const suggestions = [
   // },
 ];
 
-export default function ExploreScreen({ user, onNavigate }) {
+export default function ExploreScreen({ user, onNavigate, onResourceSelect }) {
   const [resources, setResources] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -263,6 +263,7 @@ export default function ExploreScreen({ user, onNavigate }) {
                   <Card
                     key={resource.id}
                     className="rounded-xl card-shadow hover:shadow-lg transition-shadow cursor-pointer bg-white"
+                    onClick={() => onResourceSelect(resource)}
                   >
                     <CardContent className="p-4">
                       <div className="flex space-x-4">

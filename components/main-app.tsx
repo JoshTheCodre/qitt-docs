@@ -9,30 +9,44 @@ import WalletScreen from "./screens/wallet-screen"
 import LibraryScreen from "./screens/library-screen"
 import UploadScreen from "./screens/upload-screen"
 import ProfileScreen from "./screens/profile-screen"
+import ResourceDetailScreen from "./screens/resource-detail-screen"
 
 interface MainAppProps {
   user: SupabaseUser
 }
 
-type Screen = "home" | "explore" | "wallet" | "library" | "upload" | "profile"
+type Screen = "home" | "explore" | "wallet" | "library" | "upload" | "profile" | "resource-detail"
 
 export default function MainApp({ user }: MainAppProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home")
+  const [selectedResource, setSelectedResource] = useState(null)
+
+  const handleResourceSelect = (resource) => {
+    setSelectedResource(resource)
+    setCurrentScreen("resource-detail")
+  }
+
+  const handleBackFromResourceDetail = () => {
+    setSelectedResource(null)
+    setCurrentScreen("explore")
+  }
 
   const renderScreen = () => {
     switch (currentScreen) {
       case "home":
         return <HomeScreen user={user} onNavigate={setCurrentScreen} />
       case "explore":
-        return <ExploreScreen user={user} />
+        return <ExploreScreen user={user} onNavigate={setCurrentScreen} onResourceSelect={handleResourceSelect} />
       case "wallet":
-        return <WalletScreen user={user} />
+        return <WalletScreen user={user} onNavigate={setCurrentScreen} />
       case "library":
-        return <LibraryScreen user={user} />
+        return <LibraryScreen user={user} onNavigate={setCurrentScreen} onResourceSelect={handleResourceSelect} />
       case "upload":
-        return <UploadScreen user={user} />
+        return <UploadScreen user={user} onNavigate={setCurrentScreen} />
       case "profile":
         return <ProfileScreen user={user} onNavigate={setCurrentScreen} />
+      case "resource-detail":
+        return <ResourceDetailScreen user={user} resource={selectedResource} onNavigate={setCurrentScreen} onBack={handleBackFromResourceDetail} />
       default:
         return <HomeScreen user={user} onNavigate={setCurrentScreen} />
     }

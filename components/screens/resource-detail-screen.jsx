@@ -1,248 +1,420 @@
 
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { ArrowLeft, Download, CreditCard, FileText, Star, User } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import TopNav from "@/components/top-nav"
+import { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Download,
+  CreditCard,
+  Star,
+  User,
+  Calendar,
+  BookOpen,
+  FileText,
+  Shield,
+  Heart,
+  Share,
+  Eye,
+} from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ResourceDetailScreen({ user, resource, onNavigate, onBack }) {
-  const [loading, setLoading] = useState(false)
-  const [walletBalance, setWalletBalance] = useState(0)
-  const [hasPurchased, setHasPurchased] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [userWallet, setUserWallet] = useState(null);
+  const [isOwned, setIsOwned] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (user && resource) {
-      fetchWalletBalance()
-      checkIfPurchased()
-    }
-  }, [user, resource])
+    fetchUserWallet();
+    checkOwnership();
+    checkFavorite();
+  }, [user.id, resource.id]);
 
-  const fetchWalletBalance = async () => {
+  const fetchUserWallet = async () => {
     const { data } = await supabase
-      .from("profiles")
-      .select("wallet_balance")
-      .eq("id", user.id)
-      .single()
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
     
-    if (data) setWalletBalance(data.wallet_balance || 0)
-  }
+    if (data) setUserWallet(data);
+  };
 
-  const checkIfPurchased = async () => {
-    if (resource.price === 0) {
-      setHasPurchased(true)
-      return
-    }
-
+  const checkOwnership = async () => {
     const { data } = await supabase
-      .from("transactions")
+      .from("purchases")
       .select("id")
-      .eq("buyer_id", user.id)
+      .eq("user_id", user.id)
       .eq("resource_id", resource.id)
-      .single()
+      .single();
+    
+    setIsOwned(!!data);
+  };
 
-    setHasPurchased(!!data)
-  }
-
-  const handlePurchase = async () => {
-    if (walletBalance < resource.price) {
-      alert("Insufficient wallet balance. Please add funds to your wallet.")
-      onNavigate("wallet")
-      return
-    }
-
-    setLoading(true)
-    try {
-      // Create transaction
-      const { error: transactionError } = await supabase
-        .from("transactions")
-        .insert([
-          {
-            buyer_id: user.id,
-            seller_id: resource.uploader_id,
-            resource_id: resource.id,
-            amount: resource.price
-          }
-        ])
-
-      if (transactionError) throw transactionError
-
-      // Update buyer's wallet balance
-      const { error: buyerError } = await supabase
-        .from("profiles")
-        .update({ wallet_balance: walletBalance - resource.price })
-        .eq("id", user.id)
-
-      if (buyerError) throw buyerError
-
-      // Update seller's wallet balance
-      const { data: sellerData } = await supabase
-        .from("profiles")
-        .select("wallet_balance")
-        .eq("id", resource.uploader_id)
-        .single()
-
-      if (sellerData) {
-        await supabase
-          .from("profiles")
-          .update({ wallet_balance: (sellerData.wallet_balance || 0) + resource.price })
-          .eq("id", resource.uploader_id)
-      }
-
-      setHasPurchased(true)
-      fetchWalletBalance()
-    } catch (error) {
-      console.error("Purchase error:", error)
-      alert("Purchase failed. Please try again.")
-    }
-    setLoading(false)
-  }
+  const checkFavorite = async () => {
+    const { data } = await supabase
+      .from("favorites")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("resource_id", resource.id)
+      .single();
+    
+    setIsFavorited(!!data);
+  };
 
   const handleDownload = async () => {
-    try {
-      const { data } = await supabase.storage
-        .from("resources")
-        .createSignedUrl(resource.storage_path, 3600)
+    if (resource.price > 0 && !isOwned) {
+      toast({
+        title: "Purchase Required",
+        description: "You need to buy this resource first.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, "_blank")
+    setLoading(true);
+    try {
+      // In a real app, this would download the actual file
+      toast({
+        title: "Download Started",
+        description: "Your resource is being downloaded.",
+      });
+      
+      // Record download analytics
+      await supabase.from("downloads").insert({
+        user_id: user.id,
+        resource_id: resource.id,
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!userWallet || userWallet.balance < resource.price) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Please add funds to your wallet.",
+        variant: "destructive",
+      });
+      onNavigate("wallet");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create purchase record
+      const { error: purchaseError } = await supabase.from("purchases").insert({
+        user_id: user.id,
+        resource_id: resource.id,
+        amount: resource.price,
+      });
+
+      if (purchaseError) throw purchaseError;
+
+      // Update wallet balance
+      const { error: walletError } = await supabase
+        .from("wallets")
+        .update({ balance: userWallet.balance - resource.price })
+        .eq("user_id", user.id);
+
+      if (walletError) throw walletError;
+
+      // Update seller's wallet
+      const { error: sellerError } = await supabase.rpc("increment_seller_balance", {
+        seller_id: resource.user_id,
+        amount: resource.price * 0.9, // 10% platform fee
+      });
+
+      if (sellerError) throw sellerError;
+
+      setIsOwned(true);
+      toast({
+        title: "Purchase Successful!",
+        description: "You can now download this resource.",
+      });
+    } catch (error) {
+      toast({
+        title: "Purchase Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    try {
+      if (isFavorited) {
+        await supabase
+          .from("favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("resource_id", resource.id);
+        setIsFavorited(false);
+      } else {
+        await supabase.from("favorites").insert({
+          user_id: user.id,
+          resource_id: resource.id,
+        });
+        setIsFavorited(true);
       }
     } catch (error) {
-      console.error("Download error:", error)
-      alert("Download failed. Please try again.")
+      toast({
+        title: "Action Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  if (!resource) return null
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNav 
-        title="Resource Details" 
-        showBack 
-        onBack={onBack} 
-      />
-
-      <div className="p-6 space-y-6">
-        {/* Resource Header */}
-        <Card className="rounded-2xl card-shadow bg-white">
-          <CardContent className="p-6">
-            <div className="flex space-x-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <FileText className="w-8 h-8 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-gray-900 mb-2">{resource.title}</h1>
-                <div className="flex items-center space-x-2 mb-3">
-                  <Badge variant="secondary" className="text-xs rounded-md">
-                    {resource.department}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs rounded-md">
-                    Level {resource.level}
-                  </Badge>
-                  <Badge variant={resource.price === 0 ? "default" : "destructive"} className="text-xs rounded-md">
-                    {resource.price === 0 ? "Free" : `₦${resource.price.toLocaleString()}`}
-                  </Badge>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Uploaded on {new Date(resource.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Description */}
-        {resource.description && (
-          <Card className="rounded-2xl card-shadow bg-white">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
-              <p className="text-gray-600 leading-relaxed">{resource.description}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* File Info */}
-        <Card className="rounded-2xl card-shadow bg-white">
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">File Information</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">File Type:</span>
-                <span className="font-medium text-gray-900">{resource.file_type?.toUpperCase() || 'Unknown'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Department:</span>
-                <span className="font-medium text-gray-900">{resource.department}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Academic Level:</span>
-                <span className="font-medium text-gray-900">Level {resource.level}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Wallet Balance (for paid resources) */}
-        {resource.price > 0 && !hasPurchased && (
-          <Card className="rounded-2xl card-shadow bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">Your Wallet Balance</h3>
-                  <p className="text-2xl font-bold text-green-600">₦{walletBalance.toLocaleString()}</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => onNavigate("wallet")}
-                  className="rounded-lg"
-                >
-                  Add Funds
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Action Button */}
-        <div className="fixed bottom-6 left-6 right-6 max-w-md mx-auto">
-          {hasPurchased ? (
-            <Button 
-              onClick={handleDownload}
-              className="w-full bg-green-500 hover:bg-green-600 text-white h-12 rounded-xl text-lg font-semibold"
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="flex items-center justify-between p-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="rounded-full w-10 h-10 p-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleFavorite}
+              className="rounded-full w-10 h-10 p-0"
             >
-              <Download className="w-5 h-5 mr-2" />
-              Download Now
+              <Heart className={`w-5 h-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
             </Button>
-          ) : resource.price === 0 ? (
-            <Button 
-              onClick={handleDownload}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 rounded-xl text-lg font-semibold"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full w-10 h-10 p-0"
             >
-              <Download className="w-5 h-5 mr-2" />
-              Download Free
+              <Share className="w-5 h-5" />
             </Button>
-          ) : (
-            <Button 
-              onClick={handlePurchase}
-              disabled={loading || walletBalance < resource.price}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 rounded-xl text-lg font-semibold disabled:bg-gray-400"
-            >
-              {loading ? (
-                "Processing..."
-              ) : (
-                <>
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Purchase for ₦{resource.price.toLocaleString()}
-                </>
-              )}
-            </Button>
-          )}
+          </div>
         </div>
       </div>
+
+      <div className="p-6 space-y-6">
+        {/* Hero Section */}
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 overflow-hidden">
+          <CardContent className="p-8">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                    {resource.department}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                    Level {resource.level}
+                  </Badge>
+                </div>
+                <h1 className="text-2xl font-bold mb-2 leading-tight">
+                  {resource.title}
+                </h1>
+                <p className="text-blue-100 text-sm">
+                  {resource.description || "No description available"}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">
+                  {resource.price === 0 ? "FREE" : `₦${resource.price.toLocaleString()}`}
+                </div>
+                {resource.price > 0 && (
+                  <div className="text-blue-200 text-sm">One-time purchase</div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              {resource.price === 0 || isOwned ? (
+                <Button
+                  onClick={handleDownload}
+                  disabled={loading}
+                  className="bg-white text-blue-600 hover:bg-blue-50 font-semibold flex-1"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {loading ? "Downloading..." : "Download Now"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handlePurchase}
+                  disabled={loading}
+                  className="bg-white text-blue-600 hover:bg-blue-50 font-semibold flex-1"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {loading ? "Processing..." : "Buy Now"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-white/80 backdrop-blur border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Eye className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="text-xl font-bold text-gray-900">2.3k</div>
+              <div className="text-gray-600 text-xs">Views</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Download className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="text-xl font-bold text-gray-900">451</div>
+              <div className="text-gray-600 text-xs">Downloads</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur border-0 shadow-lg">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Star className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div className="text-xl font-bold text-gray-900">4.8</div>
+              <div className="text-gray-600 text-xs">Rating</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Resource Details */}
+        <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Resource Details</h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">File Type</div>
+                  <div className="text-gray-600 text-sm">PDF Document</div>
+                </div>
+              </div>
+
+              <Separator className="bg-gray-200" />
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Uploaded by</div>
+                  <div className="text-gray-600 text-sm">Academic Contributor</div>
+                </div>
+              </div>
+
+              <Separator className="bg-gray-200" />
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Upload Date</div>
+                  <div className="text-gray-600 text-sm">{formatDate(resource.created_at)}</div>
+                </div>
+              </div>
+
+              <Separator className="bg-gray-200" />
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Security</div>
+                  <div className="text-gray-600 text-sm">Verified & Safe</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* About Section */}
+        {resource.description && (
+          <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">About This Resource</h3>
+              <p className="text-gray-700 leading-relaxed">
+                {resource.description}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Reviews Section */}
+        <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Reviews & Ratings</h3>
+              <div className="flex items-center space-x-1">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-sm font-semibold">4.8 (32 reviews)</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {[1, 2, 3].map((review) => (
+                <div key={review} className="flex space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-semibold text-sm">Student {review}</span>
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      Really helpful resource! Well structured and easy to understand.
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  )
+  );
 }

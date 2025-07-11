@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -13,12 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, GraduationCap, Users, BookOpen } from "lucide-react";
-
-const schools = [
-  "Uniport",
-  "RSU"
-];
 
 const departments = [
   "Computer Science",
@@ -64,7 +59,6 @@ export default function AuthScreen() {
           description: "You've been logged in successfully.",
         });
       } else {
-        // Validate required fields for signup
         if (!name || !school || !department || !level) {
           throw new Error("Please fill in all required fields");
         }
@@ -76,243 +70,178 @@ export default function AuthScreen() {
         if (error) throw error;
 
         if (data.user) {
-          // Create user profile
-          const { error: profileError, data: profileData } = await supabase
-            .from("users")
-            .insert([
-              {
-                id: data.user.id,
-                name,
-                email,
-                school,
-                department,
-                level,
-                role: "buyer",
-              },
-            ]);
-          console.log("Profile Data:", profileData);
-          console.log("Profile Error:", profileError);
+          const { error: profileError } = await supabase.from("users").insert({
+            id: data.user.id,
+            email: data.user.email,
+            name,
+            school,
+            department,
+            level,
+          });
 
-          if (profileError) {
-            console.log("An error occurred creating profile:", profileError);
-            throw profileError;
-          }
-          // Create wallet
-            const { error: walletError} = await supabase.from("wallets").insert([
-            {
-              user_id: data.user.id,
-              balance: 0,
-            },
-          ]);
+          if (profileError) throw profileError;
+
+          const { error: walletError } = await supabase.from("wallets").insert({
+            user_id: data.user.id,
+            balance: 0,
+          });
 
           if (walletError) throw walletError;
-        }
 
-        toast({
-          title: "Account created!",
-          description: "Welcome to Qitt! Let's get learning!",
-        });
+          toast({
+            title: "Account created!",
+            description: "Welcome to Qitt! You can now start exploring.",
+          });
+        }
       }
     } catch (error) {
       toast({
-        title: "Oops! Something went wrong",
+        title: "Authentication failed",
         description: error.message,
         variant: "destructive",
       });
-      console.log(error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Simple background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full opacity-30"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-800 rounded-full opacity-30"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo & Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isLogin ? "Welcome back" : "Join Qitt"}
+          </h1>
+          <p className="text-gray-600">
+            {isLogin ? "Sign in to your account" : "Create your student account"}
+          </p>
+        </div>
 
-      <div className="w-full max-w-md relative z-10">
-        <Card className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          <CardHeader className="text-center pb-2 bg-gray-50">
-            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <GraduationCap className="w-8 h-8 text-white" />
-            </div>
-            <CardTitle className="text-3xl font-bold text-blue-600 mb-2">
-              {isLogin ? "Welcome Back!" : "Join Qitt!"}
-            </CardTitle>
-            <p className="text-gray-600 text-sm">
-              {isLogin
-                ? "Ready to continue learning?"
-                : "Your academic journey starts here!"}
-            </p>
-          </CardHeader>
-
-          <CardContent className="p-6 space-y-4">
+        {/* Auth Form */}
+        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
+          <CardContent className="p-6">
             <form onSubmit={handleAuth} className="space-y-4">
               {!isLogin && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">
-                      Full Name *
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="rounded-xl border-gray-200 focus:border-blue-500 h-12"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">
-                      School/University *
-                    </label>
-                    <Select value={school} onValueChange={setSchool} required>
-                      <SelectTrigger className="rounded-xl border-gray-200 focus:border-blue-500 h-12">
-                        <SelectValue placeholder="Select your school" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {schools.map((schoolName) => (
-                          <SelectItem key={schoolName} value={schoolName}>
-                            {schoolName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        Department *
-                      </label>
-                      <Select
-                        value={department}
-                        onValueChange={setDepartment}
-                        required
-                      >
-                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-blue-500 h-12">
-                          <SelectValue placeholder="Department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        Level *
-                      </label>
-                      <Select value={level} onValueChange={setLevel} required>
-                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-blue-500 h-12">
-                          <SelectValue placeholder="Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="100">100 Level</SelectItem>
-                          <SelectItem value="200">200 Level</SelectItem>
-                          <SelectItem value="300">300 Level</SelectItem>
-                          <SelectItem value="400">400 Level</SelectItem>
-                          <SelectItem value="500">500 Level</SelectItem>
-                          <SelectItem value="masters">Masters</SelectItem>
-                          <SelectItem value="phd">PhD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10 h-12 border-gray-200 rounded-xl"
+                    required={!isLogin}
+                  />
+                </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
-                  Email Address
-                </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   type="email"
-                  placeholder="your.email@example.com"
+                  placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-12 border-gray-200 rounded-xl"
                   required
-                  className="rounded-xl border-gray-200 focus:border-blue-500 h-12"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
-                  Password
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="rounded-xl border-gray-200 focus:border-blue-500 h-12 pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 h-12 border-gray-200 rounded-xl"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
+
+              {!isLogin && (
+                <>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="University/School"
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      className="pl-10 h-12 border-gray-200 rounded-xl"
+                      required={!isLogin}
+                    />
+                  </div>
+
+                  <Select value={department} onValueChange={setDepartment} required={!isLogin}>
+                    <SelectTrigger className="h-12 border-gray-200 rounded-xl">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={level} onValueChange={setLevel} required={!isLogin}>
+                    <SelectTrigger className="h-12 border-gray-200 rounded-xl">
+                      <SelectValue placeholder="Select Level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="100">100 Level</SelectItem>
+                      <SelectItem value="200">200 Level</SelectItem>
+                      <SelectItem value="300">300 Level</SelectItem>
+                      <SelectItem value="400">400 Level</SelectItem>
+                      <SelectItem value="500">500 Level</SelectItem>
+                      <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-14 text-lg font-bold rounded-xl bg-blue-500 hover:bg-blue-600 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg"
               >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <span>{isLogin ? "Sign In" : "Create Account"}</span>
-                )}
+                {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
+            {isLogin && (
+              <div className="text-center mt-4">
+                <button className="text-blue-600 text-sm hover:underline">
+                  Forgot your password?
+                </button>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">or</span>
-              </div>
-            </div>
+            )}
 
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="w-full text-center text-blue-600 hover:text-blue-700 font-semibold transition-colors p-3 rounded-xl hover:bg-blue-50"
-            >
-              {isLogin ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <Users className="w-4 h-4" />
-                  <span>New here? Create an account</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center space-x-2">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Already have an account? Sign in</span>
-                </div>
-              )}
-            </button>
+            <div className="text-center mt-6 pt-6 border-t border-gray-200">
+              <p className="text-gray-600 text-sm">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-blue-600 font-semibold hover:underline mt-1"
+              >
+                {isLogin ? "Sign up for free" : "Sign in instead"}
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>

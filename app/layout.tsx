@@ -1,8 +1,10 @@
+
 import type React from "react"
 import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Toaster } from "@/components/ui/toaster"
+import BottomNav from "@/components/bottom-nav"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,7 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-md mx-auto bg-white min-h-screen relative">
+            <div className="pb-20">{children}</div>
+            <BottomNav />
+          </div>
+        </div>
         <Toaster />
       </body>
     </html>

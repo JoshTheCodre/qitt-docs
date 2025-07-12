@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -24,7 +23,12 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import ShareMaterialModal from "@/components/share-material-modal";
 
-export default function ResourceDetailScreen({ user, resource, onNavigate, onBack }) {
+export default function ResourceDetailScreen({
+  user,
+  resource,
+  onNavigate,
+  onBack,
+}) {
   const [loading, setLoading] = useState(false);
   const [userWallet, setUserWallet] = useState(null);
   const [isOwned, setIsOwned] = useState(false);
@@ -44,7 +48,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
       .select("balance")
       .eq("user_id", user.id)
       .single();
-    
+
     if (data) setUserWallet(data);
   };
 
@@ -55,7 +59,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
       .eq("user_id", user.id)
       .eq("resource_id", resource.id)
       .single();
-    
+
     setIsOwned(!!data);
   };
 
@@ -66,7 +70,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
       .eq("user_id", user.id)
       .eq("resource_id", resource.id)
       .single();
-    
+
     setIsFavorited(!!data);
   };
 
@@ -106,17 +110,17 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
 
       if (fileData?.signedUrl) {
         // Create download link
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = fileData.signedUrl;
         a.download = resource.title;
-        a.target = '_blank';
+        a.target = "_blank";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       } else {
         throw new Error("Could not generate download link");
       }
-      
+
       toast({
         title: "Download Complete",
         description: "Your resource has been downloaded successfully.",
@@ -124,9 +128,10 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
     } catch (error) {
       toast({
         title: "Download Failed",
-        description: "Please try again.",
+        description: "Please try again" + `${error}`,
         variant: "destructive",
       });
+      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -146,11 +151,13 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
     setLoading(true);
     try {
       // Create transaction record
-      const { error: transactionError } = await supabase.from("transactions").insert({
-        buyer_id: user.id,
-        resource_id: resource.id,
-        amount: resource.price,
-      });
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .insert({
+          buyer_id: user.id,
+          resource_id: resource.id,
+          amount: resource.price,
+        });
 
       if (transactionError) throw transactionError;
 
@@ -171,12 +178,14 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         .single();
 
       if (!existingDownload) {
-        const { error: downloadError } = await supabase.from("downloads").insert({
-          user_id: user.id,
-          resource_id: resource.id,
-          downloaded_at: new Date().toISOString(),
-        });
-        
+        const { error: downloadError } = await supabase
+          .from("downloads")
+          .insert({
+            user_id: user.id,
+            resource_id: resource.id,
+            downloaded_at: new Date().toISOString(),
+          });
+
         if (downloadError) {
           console.error("Error adding to downloads:", downloadError);
         }
@@ -245,7 +254,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          
+
           <div className="flex items-center space-x-2">
             <Button
               variant="ghost"
@@ -253,7 +262,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
               onClick={toggleFavorite}
               className="rounded-full w-10 h-10 p-0"
             >
-              <Heart className={`w-5 h-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart
+                className={`w-5 h-5 ${isFavorited ? "fill-red-500 text-red-500" : ""}`}
+              />
             </Button>
             <Button
               variant="ghost"
@@ -274,16 +285,16 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
             <CardContent className="p-0">
               <div className="aspect-video bg-gray-100 relative">
                 <img
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/previews/${resource.preview_path}`}
+                  src={`https://vmfjidjxdofmdonivzzp.supabase.co/storage/v1/object/public/previews/${resource.preview_path}`}
                   alt={`Preview of ${resource.title}`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.style.display = "none";
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
-                  <div className="text-sm opacity-80">Preview</div>
+                  <div className="text-sm opacity-80">Previews</div>
                 </div>
               </div>
             </CardContent>
@@ -296,10 +307,16 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-3">
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/20 text-white border-0"
+                  >
                     {resource.department}
                   </Badge>
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/20 text-white border-0"
+                  >
                     Level {resource.level}
                   </Badge>
                 </div>
@@ -312,7 +329,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold">
-                  {resource.price === 0 ? "FREE" : `₦${resource.price.toLocaleString()}`}
+                  {resource.price === 0
+                    ? "FREE"
+                    : `₦${resource.price.toLocaleString()}`}
                 </div>
                 {resource.price > 0 && (
                   <div className="text-blue-200 text-sm">One-time purchase</div>
@@ -347,7 +366,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
                   className="bg-white text-blue-600 hover:bg-blue-50 font-semibold flex-1"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {loading ? "Processing..." : `Buy for ₦${resource.price.toLocaleString()}`}
+                  {loading
+                    ? "Processing..."
+                    : `Buy for ₦${resource.price.toLocaleString()}`}
                 </Button>
               )}
             </div>
@@ -390,8 +411,10 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         {/* Resource Details */}
         <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
           <CardContent className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Resource Details</h3>
-            
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              Resource Details
+            </h3>
+
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -411,7 +434,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Uploaded by</div>
-                  <div className="text-gray-600 text-sm">Academic Contributor</div>
+                  <div className="text-gray-600 text-sm">
+                    Academic Contributor
+                  </div>
                 </div>
               </div>
 
@@ -423,7 +448,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Upload Date</div>
-                  <div className="text-gray-600 text-sm">{formatDate(resource.created_at)}</div>
+                  <div className="text-gray-600 text-sm">
+                    {formatDate(resource.created_at)}
+                  </div>
                 </div>
               </div>
 
@@ -446,7 +473,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         {resource.description && (
           <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">About This Resource</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                About This Resource
+              </h3>
               <p className="text-gray-700 leading-relaxed">
                 {resource.description}
               </p>
@@ -458,7 +487,9 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Reviews & Ratings</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                Reviews & Ratings
+              </h3>
               <div className="flex items-center space-x-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                 <span className="text-sm font-semibold">4.8 (32 reviews)</span>
@@ -473,15 +504,21 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-semibold text-sm">Student {review}</span>
+                      <span className="font-semibold text-sm">
+                        Student {review}
+                      </span>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <Star
+                            key={i}
+                            className="w-3 h-3 fill-yellow-400 text-yellow-400"
+                          />
                         ))}
                       </div>
                     </div>
                     <p className="text-gray-600 text-sm">
-                      Really helpful resource! Well structured and easy to understand.
+                      Really helpful resource! Well structured and easy to
+                      understand.
                     </p>
                   </div>
                 </div>
@@ -492,7 +529,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
       </div>
 
       {/* Share Modal */}
-      <ShareMaterialModal 
+      <ShareMaterialModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         resource={resource}

@@ -1,16 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Upload, FileText, ImageIcon, File, Camera, CheckCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import TopNav from "@/components/top-nav"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import TopNav from "@/components/top-nav"
+import { getUserTier, getTierInfo, canUserUpload, getPriceSuggestions } from "@/lib/tier-system"
 
 const departments = [
   "Computer Science",
@@ -39,6 +47,39 @@ export default function UploadScreen({ user, onNavigate }) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadComplete, setUploadComplete] = useState(false)
   const { toast } = useToast()
+  const [userTier, setUserTier] = useState(1)
+  const [tierInfo, setTierInfo] = useState(getTierInfo(1))
+  const [uploadCount, setUploadCount] = useState(0)
+
+  useEffect(() => {
+    const fetchTierInfo = async () => {
+      const tier = await getUserTier(user.id)
+      setUserTier(tier)
+      setTierInfo(getTierInfo(tier))
+    }
+
+    fetchTierInfo()
+  }, [user])
+
+    useEffect(() => {
+        const fetchUploadCount = async () => {
+            if (user && user.id) {
+                const { data, error } = await supabase
+                    .from('resources')
+                    .select('*', { count: 'exact' })
+                    .eq('uploader_id', user.id);
+
+                if (error) {
+                    console.error("Error fetching upload count:", error);
+                } else {
+                    setUploadCount(data ? data.length : 0);
+                }
+            }
+        };
+
+        fetchUploadCount();
+    }, [user]);
+
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files?.[0]
@@ -144,6 +185,88 @@ export default function UploadScreen({ user, onNavigate }) {
     }
   }
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!file || !title || !department || !level) {
+            toast({
+                title: "Missing Information",
+                description: "Please fill in all required fields and select a file.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setUploading(true);
+        simulateUploadProgress();
+
+        try {
+            // Upload file to Supabase Storage
+            const fileExt = file.name.split(".").pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `resources/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("resources")
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Save resource metadata to database
+            const { error: dbError } = await supabase
+                .from("resources")
+                .insert({
+                    title,
+                    description,
+                    uploader_id: user.id,
+                    department,
+                    level,
+                    price: Number.parseFloat(price) || 0,
+                    tags: tags
+                        .split(",")
+                        .map(tag => tag.trim())
+                        .filter(Boolean),
+                    storage_path: filePath,
+                    file_type: file.type,
+                });
+
+            if (dbError) throw dbError;
+
+            setUploadComplete(true);
+
+            toast({
+                title: "🎉 Upload Successful!",
+                description: "Your resource has been uploaded and is now available.",
+            });
+
+            // Update upload count
+             setUploadCount(prevCount => prevCount + 1);
+
+
+            // Reset form after delay
+            setTimeout(() => {
+                setFile(null);
+                setTitle("");
+                setDescription("");
+                setDepartment("");
+                setLevel("");
+                setPrice("");
+                setTags("");
+                setUploadComplete(false);
+                setUploadProgress(0);
+            }, 2000);
+        } catch (error) {
+            toast({
+                title: "Upload Failed",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+
   const getFileIcon = () => {
     if (!file) return <Upload className="w-12 h-12 text-gray-400" />
 
@@ -165,21 +288,49 @@ export default function UploadScreen({ user, onNavigate }) {
       <TopNav title="Upload Resource" showBack onBack={() => onNavigate("home")} />
 
       <div className="p-6">
-        <Card className="rounded-2xl card-shadow bg-white">
+        {/* Tier Information */}
+        <Card className="rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">{tierInfo.name} Tier</h3>
+                <p className="text-sm text-gray-600">
+                  {uploadCount}/{tierInfo.uploadLimit} uploads used
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                Tier {userTier}
+              </Badge>
+            </div>
+            <div className="mt-2">
+              <Progress 
+                value={(uploadCount / tierInfo.uploadLimit) * 100} 
+                className="h-2" 
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl bg-white card-shadow">
           <CardContent className="p-6">
-            {uploadComplete ? (
+            {!canUserUpload(uploadCount, userTier) ? (
               <div className="text-center py-8">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Upload className="w-8 h-8 text-red-500" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Upload Complete!</h3>
-                <p className="text-gray-600 mb-4">Your resource is now live and available for purchase</p>
-                <Button onClick={() => onNavigate("library")} className="bg-blue-500 hover:bg-blue-600 text-white">
-                  View in Library
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Limit Reached</h3>
+                <p className="text-gray-600 mb-4">
+                  You've reached your {tierInfo.name} tier limit of {tierInfo.uploadLimit} uploads.
+                </p>
+                <Button 
+                  onClick={() => onNavigate("profile")}
+                  className="rounded-xl bg-blue-500 hover:bg-blue-600"
+                >
+                  Upgrade Tier
                 </Button>
               </div>
-            ) : (
-              <form onSubmit={handleUpload} className="space-y-6">
+            ) : !uploadComplete ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {/* File Upload */}
                 <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-colors">
                   <input
@@ -275,16 +426,42 @@ export default function UploadScreen({ user, onNavigate }) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price (₦)</label>
-                    <Input
-                      type="number"
-                      placeholder="0 for free, or set your price"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="rounded-xl border-gray-200 h-12"
-                      min="0"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Leave empty or enter 0 to make it free</p>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Price (₦) - Recommended: ₦{tierInfo.priceRange.min} - ₦{tierInfo.priceRange.max}
+                    </label>
+                    <div className="space-y-3">
+                      <div className="flex space-x-2 flex-wrap gap-2">
+                        {getPriceSuggestions(userTier).map((suggestedPrice) => (
+                          <Button
+                            key={suggestedPrice}
+                            type="button"
+                            variant={price === suggestedPrice.toString() ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPrice(suggestedPrice.toString())}
+                            className="rounded-lg"
+                          >
+                            ₦{suggestedPrice.toLocaleString()}
+                          </Button>
+                        ))}
+                        <Button
+                          type="button"
+                          variant={price === "0" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPrice("0")}
+                          className="rounded-lg"
+                        >
+                          Free
+                        </Button>
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="Or enter custom price"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="rounded-xl border-gray-200 h-12"
+                        min="0"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -316,6 +493,17 @@ export default function UploadScreen({ user, onNavigate }) {
                   )}
                 </Button>
               </form>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Upload Complete!</h3>
+                <p className="text-gray-600 mb-4">Your resource is now live and available for purchase</p>
+                <Button onClick={() => onNavigate("library")} className="bg-blue-500 hover:bg-blue-600 text-white">
+                  View in Library
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

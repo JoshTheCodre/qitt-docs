@@ -28,7 +28,6 @@ export default function ExplorePage() {
   }
 
   const handleResourceSelect = (resource) => {
-    setSelectedResource(resource)
     router.push(`/resource/${resource.id}`)
   }
 

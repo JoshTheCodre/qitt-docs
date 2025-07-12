@@ -89,7 +89,9 @@ export default function ExploreScreen({ user, onNavigate, onResourceSelect }) {
     let query = supabase.from("resources").select("*");
 
     if (searchQuery) {
-      query = query.textSearch("title", searchQuery);
+      // Enhanced search: title, description, and tags
+      const searchTerm = searchQuery.toLowerCase();
+      query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`);
     }
 
     if (departmentFilter !== "all") {
@@ -108,8 +110,29 @@ export default function ExploreScreen({ user, onNavigate, onResourceSelect }) {
 
     const { data } = await query.order("created_at", { ascending: false });
 
-    if (data) setResources(data);
+    if (data) {
+      // Check if user has downloaded any resources
+      const downloadedResources = await checkDownloadedResources(data);
+      setResources(downloadedResources);
+    }
     setLoading(false);
+  };
+
+  const checkDownloadedResources = async (resources) => {
+    if (!user) return resources;
+    
+    // Get user's downloaded resources
+    const { data: transactions } = await supabase
+      .from("transactions")
+      .select("resource_id")
+      .eq("buyer_id", user.id);
+
+    const downloadedIds = new Set(transactions?.map(t => t.resource_id) || []);
+
+    return resources.map(resource => ({
+      ...resource,
+      isDownloaded: downloadedIds.has(resource.id)
+    }));
   };
 
   const handleSearch = () => {
@@ -291,9 +314,18 @@ export default function ExploreScreen({ user, onNavigate, onResourceSelect }) {
                               >
                                 Level {resource.level}
                               </Badge>
+                              {resource.isDownloaded && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs rounded-md text-green-600 border-green-200 bg-green-50"
+                                >
+                                  Downloaded
+                                </Badge>
+                              )}
                             </div>
                             <span className="text-blue-600 font-bold">
-                              {resource.price === 0
+                              {resource.isDownloaded ? "In Library" : 
+                                resource.price === 0
                                 ? "Free"
                                 : `₦${resource.price.toLocaleString()}`}
                             </span>

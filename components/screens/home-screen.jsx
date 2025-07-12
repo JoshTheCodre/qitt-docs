@@ -14,9 +14,10 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import TopNav from "@/components/top-nav";
-import ModernSearch from "@/components/modern-search";
-import { ResourceCardSkeleton } from "@/components/loading-skeleton";
+import TopNav from "@/components/top-nav"
+import ModernSearch from "@/components/modern-search"
+import { ResourceCardSkeleton } from "@/components/loading-skeleton"
+import InstallAppButton from "@/components/install-app-button"
 
 export default function HomeScreen({ user, onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -133,13 +134,16 @@ export default function HomeScreen({ user, onNavigate }) {
           </button>
         </div>
 
-        {/* Search Bar */}
+        {/* Search */}
         <ModernSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          onSearch={handleSearch}
+          onSearch={() => onNavigate("explore")}
           showSuggestions
         />
+
+        {/* Install App Button */}
+        <InstallAppButton className="mb-4" />
 
         {/* Featured Resources */}
         <div>

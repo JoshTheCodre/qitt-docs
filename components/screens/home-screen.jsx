@@ -18,6 +18,7 @@ import TopNav from "@/components/top-nav"
 import ModernSearch from "@/components/modern-search"
 import { ResourceCardSkeleton } from "@/components/loading-skeleton"
 import InstallAppButton from "@/components/install-app-button"
+import SupportBubble from "@/components/support-bubble";
 
 export default function HomeScreen({ user, onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -378,6 +379,8 @@ export default function HomeScreen({ user, onNavigate }) {
           </div>
         )}
       </div>
+
+      <SupportBubble />
     </div>
-  );
+  )
 }

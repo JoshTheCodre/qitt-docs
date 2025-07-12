@@ -99,16 +99,23 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         });
       }
 
-      // Simulate file download
-      const blob = new Blob([`Downloaded: ${resource.title}`], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${resource.title}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Get actual file from storage
+      const { data: fileData } = await supabase.storage
+        .from("resources")
+        .createSignedUrl(resource.storage_path, 3600);
+
+      if (fileData?.signedUrl) {
+        // Create download link
+        const a = document.createElement('a');
+        a.href = fileData.signedUrl;
+        a.download = resource.title;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        throw new Error("Could not generate download link");
+      }
       
       toast({
         title: "Download Complete",
@@ -164,11 +171,15 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
         .single();
 
       if (!existingDownload) {
-        await supabase.from("downloads").insert({
+        const { error: downloadError } = await supabase.from("downloads").insert({
           user_id: user.id,
           resource_id: resource.id,
           downloaded_at: new Date().toISOString(),
         });
+        
+        if (downloadError) {
+          console.error("Error adding to downloads:", downloadError);
+        }
       }
 
       setIsOwned(true);
@@ -257,6 +268,28 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
       </div>
 
       <div className="p-6 space-y-6">
+        {/* Preview Image */}
+        {resource.preview_path && (
+          <Card className="bg-white border-0 overflow-hidden shadow-lg">
+            <CardContent className="p-0">
+              <div className="aspect-video bg-gray-100 relative">
+                <img
+                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/previews/${resource.preview_path}`}
+                  alt={`Preview of ${resource.title}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <div className="absolute bottom-4 left-4 text-white">
+                  <div className="text-sm opacity-80">Preview</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Hero Section */}
         <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 overflow-hidden">
           <CardContent className="p-8">

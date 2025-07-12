@@ -29,6 +29,8 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
     const { data } = await supabase
       .from("downloads")
       .select(`
+        id,
+        downloaded_at,
         resources (
           id,
           title,
@@ -37,10 +39,12 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
           price,
           file_type,
           storage_path,
+          preview_path,
           created_at
         )
       `)
       .eq("user_id", user.id)
+      .order("downloaded_at", { ascending: false })
 
     if (data) {
       const resources = data.map((item) => item.resources).filter(Boolean)
@@ -113,9 +117,28 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
       >
         <CardContent className="p-4">
           <div className="flex space-x-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center  flex-shrink-0">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
+            {resource.preview_path ? (
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                <img
+                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/previews/${resource.preview_path}`}
+                  alt={`Preview of ${resource.title}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.parentElement.innerHTML = `
+                      <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                      </div>
+                    `;
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="w-6 h-6 text-blue-600" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{resource.title}</h3>
               <div className="flex items-center space-x-2 mb-2">

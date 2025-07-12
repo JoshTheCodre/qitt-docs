@@ -247,7 +247,6 @@ export default function UploadScreen({ user, onNavigate }) {
   }
 
   // ...render UI (keep rest of JSX as-is)
-}
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -419,7 +418,7 @@ export default function UploadScreen({ user, onNavigate }) {
                           Free
                         </Button>
                       </div>
-                      
+
                     </div>
                   </div>
 

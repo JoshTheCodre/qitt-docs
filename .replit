@@ -16,7 +16,6 @@ localPort = 3001
 externalPort = 3001
 
 [workflows]
-runButton = "Run"
 
 [[workflows.workflow]]
 name = "Run"
@@ -26,3 +25,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[[workflows.workflow]]
+name = "install zustand"
+mode = "sequential"
+author = 44915606
+
+[[workflows.workflow.tasks]]
+task = "packager.installForLanguage"
+args = "nodejs"

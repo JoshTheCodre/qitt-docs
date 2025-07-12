@@ -18,12 +18,26 @@ export default function MaterialViewer({ resource, onClose }) {
   const FileIcon = getFileIcon(resource.file_type)
 
   const handleDownload = () => {
-    // In a real app, this would download from storage
-    const link = document.createElement('a')
-    link.href = resource.storage_path
-    link.download = resource.title
-    link.click()
+    // Get the public URL from Supabase storage
+    const { data } = supabase
+      .storage
+      .from('resources') // bucket name
+      .getPublicUrl(resource.storage_path) // storage_path should be the path relative to the bucket
+
+    // If the public URL exists, trigger the download
+    if (data && data.publicUrl) {
+      const link = document.createElement('a')
+      link.href = data.publicUrl
+      link.download = '' // This will trigger download, you can specify a filename here
+      document.body.appendChild(link) // Needed for Firefox
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      // Handle error (optional)
+      alert('Could not generate download link!')
+    }
   }
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

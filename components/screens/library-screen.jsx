@@ -113,7 +113,7 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
       >
         <CardContent className="p-4">
           <div className="flex space-x-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center  flex-shrink-0">
               <FileText className="w-6 h-6 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">

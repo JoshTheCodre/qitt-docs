@@ -19,20 +19,14 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import TopNav from "@/components/top-nav"
 import { getUserTier, getTierInfo, canUserUpload, getPriceSuggestions } from "@/lib/tier-system"
+import * as pdfjsLib from "pdfjs-dist/build/pdf"
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry"
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 const departments = [
-  "Computer Science",
-  "Engineering",
-  "Medicine",
-  "Law",
-  "Business Administration",
-  "Economics",
-  "Psychology",
-  "Biology",
-  "Chemistry",
-  "Physics",
-  "Mathematics",
-  "English",
+  "Computer Science", "Engineering", "Medicine", "Law", "Business Administration",
+  "Economics", "Psychology", "Biology", "Chemistry", "Physics", "Mathematics", "English",
 ]
 
 export default function UploadScreen({ user, onNavigate }) {
@@ -57,34 +51,25 @@ export default function UploadScreen({ user, onNavigate }) {
       setUserTier(tier)
       setTierInfo(getTierInfo(tier))
     }
-
     fetchTierInfo()
   }, [user])
 
-    useEffect(() => {
-        const fetchUploadCount = async () => {
-            if (user && user.id) {
-                const { data, error } = await supabase
-                    .from('resources')
-                    .select('*', { count: 'exact' })
-                    .eq('uploader_id', user.id);
-
-                if (error) {
-                    console.error("Error fetching upload count:", error);
-                } else {
-                    setUploadCount(data ? data.length : 0);
-                }
-            }
-        };
-
-        fetchUploadCount();
-    }, [user]);
-
+  useEffect(() => {
+    const fetchUploadCount = async () => {
+      if (user && user.id) {
+        const { data, error } = await supabase
+          .from('resources')
+          .select('*', { count: 'exact' })
+          .eq('uploader_id', user.id)
+        if (!error) setUploadCount(data.length)
+      }
+    }
+    fetchUploadCount()
+  }, [user])
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      // Check file size (10MB limit)
       if (selectedFile.size > 10 * 1024 * 1024) {
         toast({
           title: "File too large",
@@ -110,7 +95,59 @@ export default function UploadScreen({ user, onNavigate }) {
     }, 200)
   }
 
-  const handleUpload = async (e) => {
+  const generatePreviewImage = async (file) => {
+    if (file.type === "application/pdf") {
+      const fileUrl = URL.createObjectURL(file)
+      const pdf = await pdfjsLib.getDocument(fileUrl).promise
+      const page = await pdf.getPage(1)
+      const canvas = document.createElement("canvas")
+      const context = canvas.getContext("2d")
+      const scale = 1.5
+      const viewport = page.getViewport({ scale })
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      await page.render({ canvasContext: context, viewport }).promise
+
+      // Apply rules based on page count
+      if (pdf.numPages === 1) {
+        cropCanvas(canvas, 0, 0, canvas.width, canvas.height * 0.3)
+      } else if (pdf.numPages <= 5) {
+        cropCanvas(canvas, 0, 0, canvas.width, canvas.height * 0.6)
+      } else {
+        context.globalAlpha = 0.5
+        context.fillStyle = "rgba(255,255,255,0.5)"
+        context.fillRect(0, 0, canvas.width, canvas.height)
+      }
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.7))
+      return blob
+    } else if (file.type.startsWith("image/")) {
+      const img = new Image()
+      const fileUrl = URL.createObjectURL(file)
+      await new Promise((resolve) => { img.onload = resolve; img.src = fileUrl })
+      const canvas = document.createElement("canvas")
+      const context = canvas.getContext("2d")
+      canvas.width = img.width
+      canvas.height = img.height * 0.2 // Crop 80%
+      context.drawImage(img, 0, 0, img.width, img.height * 0.2, 0, 0, img.width, img.height * 0.2)
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.5))
+      return blob
+    }
+    return null
+  }
+
+  const cropCanvas = (canvas, x, y, width, height) => {
+    const cropped = document.createElement("canvas")
+    const ctx = cropped.getContext("2d")
+    cropped.width = width
+    cropped.height = height
+    ctx.drawImage(canvas, x, y, width, height, 0, 0, width, height)
+    canvas.width = width
+    canvas.height = height
+    canvas.getContext("2d").drawImage(cropped, 0, 0)
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!file || !title || !department || !level) {
       toast({
@@ -125,44 +162,53 @@ export default function UploadScreen({ user, onNavigate }) {
     simulateUploadProgress()
 
     try {
-      // Simulate file upload
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      // Upload file to Supabase Storage
       const fileExt = file.name.split(".").pop()
       const fileName = `${Date.now()}.${fileExt}`
       const filePath = `resources/${fileName}`
 
-      const { error: uploadError } = await supabase.storage.from("resources").upload(filePath, file)
+      // Generate preview
+      const previewBlob = await generatePreviewImage(file)
+      const previewFileName = `preview_${Date.now()}.jpg`
+      const previewPath = `previews/${previewFileName}`
 
+      // Upload preview
+      const { error: previewUploadError } = await supabase.storage
+        .from("previews")
+        .upload(previewPath, previewBlob)
+      if (previewUploadError) throw previewUploadError
+
+      // Upload original file
+      const { error: uploadError } = await supabase.storage
+        .from("resources")
+        .upload(filePath, file)
       if (uploadError) throw uploadError
 
-      // Save resource metadata to database
-      const { error: dbError } = await supabase.from("resources").insert({
-        title,
-        description,
-        uploader_id: user.id,
-        department,
-        level,
-        price: Number.parseFloat(price) || 0,
-        tags: tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        storage_path: filePath,
-        file_type: file.type,
-      })
-
+      // Save metadata
+      const { error: dbError } = await supabase
+        .from("resources")
+        .insert({
+          title,
+          description,
+          uploader_id: user.id,
+          department,
+          level,
+          price: Number.parseFloat(price) || 0,
+          tags: tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          storage_path: filePath,
+          file_type: file.type,
+          preview_path: previewPath,
+        })
       if (dbError) throw dbError
 
       setUploadComplete(true)
-
       toast({
         title: "🎉 Upload Successful!",
-        description: "Your resource has been uploaded and is now available.",
+        description: "Your resource and preview are live.",
       })
 
-      // Reset form after delay
       setTimeout(() => {
         setFile(null)
         setTitle("")
@@ -185,91 +231,8 @@ export default function UploadScreen({ user, onNavigate }) {
     }
   }
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!file || !title || !department || !level) {
-            toast({
-                title: "Missing Information",
-                description: "Please fill in all required fields and select a file.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        setUploading(true);
-        simulateUploadProgress();
-
-        try {
-            // Upload file to Supabase Storage
-            const fileExt = file.name.split(".").pop();
-            const fileName = `${Date.now()}.${fileExt}`;
-            const filePath = `resources/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("resources")
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            // Save resource metadata to database
-            const { error: dbError } = await supabase
-                .from("resources")
-                .insert({
-                    title,
-                    description,
-                    uploader_id: user.id,
-                    department,
-                    level,
-                    price: Number.parseFloat(price) || 0,
-                    tags: tags
-                        .split(",")
-                        .map(tag => tag.trim())
-                        .filter(Boolean),
-                    storage_path: filePath,
-                    file_type: file.type,
-                });
-
-            if (dbError) throw dbError;
-
-            setUploadComplete(true);
-
-            toast({
-                title: "🎉 Upload Successful!",
-                description: "Your resource has been uploaded and is now available.",
-            });
-
-            // Update upload count
-             setUploadCount(prevCount => prevCount + 1);
-
-
-            // Reset form after delay
-            setTimeout(() => {
-                setFile(null);
-                setTitle("");
-                setDescription("");
-                setDepartment("");
-                setLevel("");
-                setPrice("");
-                setTags("");
-                setUploadComplete(false);
-                setUploadProgress(0);
-            }, 2000);
-        } catch (error) {
-            toast({
-                title: "Upload Failed",
-                description: error.message,
-                variant: "destructive",
-            });
-        } finally {
-            setUploading(false);
-        }
-    };
-
-
   const getFileIcon = () => {
     if (!file) return <Upload className="w-12 h-12 text-gray-400" />
-
     if (file.type.includes("image")) return <ImageIcon className="w-12 h-12 text-blue-500" />
     if (file.type.includes("pdf")) return <FileText className="w-12 h-12 text-red-500" />
     return <File className="w-12 h-12 text-gray-500" />
@@ -282,6 +245,9 @@ export default function UploadScreen({ user, onNavigate }) {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
+
+  // ...render UI (keep rest of JSX as-is)
+}
 
   return (
     <div className="min-h-screen bg-gray-50">

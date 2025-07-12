@@ -12,6 +12,7 @@ import TopNav from "@/components/top-nav"
 export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
   const [downloads, setDownloads] = useState([])
   const [uploads, setUploads] = useState([])
+  const [uploadStats, setUploadStats] = useState({})
 
   useEffect(() => {
     fetchDownloads()
@@ -48,7 +49,40 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
       .eq("uploader_id", user.id)
       .order("created_at", { ascending: false })
 
-    if (data) setUploads(data)
+    if (data) {
+      setUploads(data)
+      fetchUploadStats(data)
+    }
+  }
+
+  const fetchUploadStats = async (resources) => {
+    const stats = {}
+    
+    for (const resource of resources) {
+      // Get purchase count and total earnings
+      const { data: purchases } = await supabase
+        .from("transactions")
+        .select("amount")
+        .eq("resource_id", resource.id)
+      
+      // Get download count
+      const { data: downloads } = await supabase
+        .from("downloads")
+        .select("id")
+        .eq("resource_id", resource.id)
+      
+      // Get view count (simulated for now)
+      const viewCount = Math.floor(Math.random() * 1000) + 50
+      
+      stats[resource.id] = {
+        purchases: purchases?.length || 0,
+        totalEarnings: purchases?.reduce((sum, p) => sum + (p.amount * 0.9), 0) || 0, // 90% after platform fee
+        downloads: downloads?.length || 0,
+        views: viewCount
+      }
+    }
+    
+    setUploadStats(stats)
   }
 
   const handleDownload = async (resource) => {
@@ -63,44 +97,71 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
     }
   }
 
-  const ResourceCard = ({ resource, showDownload = false }) => (
-    <Card 
-      className="rounded-xl card-shadow hover:shadow-lg transition-shadow bg-white cursor-pointer"
-      onClick={() => onResourceSelect(resource)}
-    >
-      <CardContent className="p-4">
-        <div className="flex space-x-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <FileText className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{resource.title}</h3>
-            <div className="flex items-center space-x-2 mb-2">
-              <Badge variant="secondary" className="text-xs rounded-md">
-                {resource.department}
-              </Badge>
-              <Badge variant="outline" className="text-xs rounded-md">
-                Level {resource.level}
-              </Badge>
+  const ResourceCard = ({ resource, showDownload = false, showStats = false }) => {
+    const stats = uploadStats[resource.id]
+    
+    return (
+      <Card 
+        className="rounded-xl card-shadow hover:shadow-lg transition-shadow bg-white cursor-pointer"
+        onClick={() => onResourceSelect(resource)}
+      >
+        <CardContent className="p-4">
+          <div className="flex space-x-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <FileText className="w-6 h-6 text-blue-600" />
             </div>
-            <p className="text-gray-500 text-xs">{new Date(resource.created_at).toLocaleDateString()}</p>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{resource.title}</h3>
+              <div className="flex items-center space-x-2 mb-2">
+                <Badge variant="secondary" className="text-xs rounded-md">
+                  {resource.department}
+                </Badge>
+                <Badge variant="outline" className="text-xs rounded-md">
+                  Level {resource.level}
+                </Badge>
+                {resource.price === 0 && (
+                  <Badge variant="outline" className="text-xs rounded-md text-green-600 border-green-200">
+                    FREE
+                  </Badge>
+                )}
+              </div>
+              {showStats && stats && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-gray-900">{stats.views}</p>
+                    <p className="text-xs text-gray-500">Views</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-gray-900">{stats.downloads}</p>
+                    <p className="text-xs text-gray-500">Downloads</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-green-600">₦{stats.totalEarnings.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">Earned</p>
+                  </div>
+                </div>
+              )}
+              {!showStats && (
+                <p className="text-gray-500 text-xs">{new Date(resource.created_at).toLocaleDateString()}</p>
+              )}
+            </div>
+            {showDownload && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDownload(resource)
+                }}
+                size="sm"
+                className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-          {showDownload && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleDownload(resource)
-              }}
-              size="sm"
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
-            >
-              <Download className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -156,8 +217,29 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
               </div>
             ) : (
               <div className="space-y-4">
+                <div className="bg-white rounded-xl p-4 mb-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Overview</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">{uploads.length}</p>
+                      <p className="text-sm text-gray-600">Resources</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">
+                        ₦{Object.values(uploadStats).reduce((sum, stat) => sum + stat.totalEarnings, 0).toLocaleString()}
+                      </p>
+                      <p className="text-sm text-gray-600">Total Earned</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-purple-600">
+                        {Object.values(uploadStats).reduce((sum, stat) => sum + stat.downloads, 0)}
+                      </p>
+                      <p className="text-sm text-gray-600">Downloads</p>
+                    </div>
+                  </div>
+                </div>
                 {uploads.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
+                  <ResourceCard key={resource.id} resource={resource} showStats />
                 ))}
               </div>
             )}

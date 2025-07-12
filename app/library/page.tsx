@@ -9,7 +9,7 @@ import useStore from "@/store/useStore"
 
 export default function LibraryPage() {
   const router = useRouter()
-  const { user, setUser } = useStore()
+  const { user, setUser, setSelectedResource } = useStore()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -27,12 +27,17 @@ export default function LibraryPage() {
     router.push(`/${route}`)
   }
 
+  const handleResourceSelect = (resource) => {
+    setSelectedResource(resource)
+    router.push(`/resource/${resource.id}`)
+  }
+
   if (!user) return null
 
   return (
     <>
       <div className="pb-20">
-        <LibraryScreen user={user} onNavigate={handleNavigate} />
+        <LibraryScreen user={user} onNavigate={handleNavigate} onResourceSelect={handleResourceSelect} />
       </div>
       <BottomNav />
     </>

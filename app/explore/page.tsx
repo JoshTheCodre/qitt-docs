@@ -27,12 +27,17 @@ export default function ExplorePage() {
     router.push(`/${route}`)
   }
 
+  const handleResourceSelect = (resource) => {
+    setSelectedResource(resource)
+    router.push(`/resource/${resource.id}`)
+  }
+
   if (!user) return null
 
   return (
     <>
       <div className="pb-20">
-        <ExploreScreen user={user} onNavigate={handleNavigate} />
+        <ExploreScreen user={user} onNavigate={handleNavigate} onResourceSelect={handleResourceSelect} />
       </div>
       <BottomNav />
     </>

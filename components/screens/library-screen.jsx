@@ -14,6 +14,12 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
   const [uploads, setUploads] = useState([])
   const [uploadStats, setUploadStats] = useState({})
 
+  const handleResourceDetails = (resource) => {
+    if (onResourceSelect) {
+      onResourceSelect(resource)
+    }
+  }
+
   useEffect(() => {
     fetchDownloads()
     fetchUploads()
@@ -103,7 +109,7 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
     return (
       <Card 
         className="rounded-xl card-shadow hover:shadow-lg transition-shadow bg-white cursor-pointer"
-        onClick={() => onResourceSelect(resource)}
+        onClick={() => handleResourceDetails(resource)}
       >
         <CardContent className="p-4">
           <div className="flex space-x-4">

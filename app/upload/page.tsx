@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import UploadScreen from "@/components/screens/upload-screen"
+import BottomNav from "@/components/bottom-nav"
 import useStore from "@/store/useStore"
 
 export default function UploadPage() {
@@ -29,5 +30,12 @@ export default function UploadPage() {
 
   if (!user) return null
 
-  return <UploadScreen user={user} onNavigate={handleNavigate} />
+  return (
+    <>
+      <div className="pb-20">
+        <UploadScreen user={user} onNavigate={handleNavigate} />
+      </div>
+      <BottomNav />
+    </>
+  )
 }

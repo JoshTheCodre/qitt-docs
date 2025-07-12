@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HomeScreen from "@/components/screens/home-screen"
+import BottomNav from "@/components/bottom-nav"
 import useStore from "@/store/useStore"
 
 export default function HomePage() {
@@ -29,5 +30,12 @@ export default function HomePage() {
 
   if (!user) return null
 
-  return <HomeScreen user={user} onNavigate={handleNavigate} />
+  return (
+    <>
+      <div className="pb-20">
+        <HomeScreen user={user} onNavigate={handleNavigate} />
+      </div>
+      <BottomNav />
+    </>
+  )
 }

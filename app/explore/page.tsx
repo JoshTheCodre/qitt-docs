@@ -1,15 +1,15 @@
-
 "use client"
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import ExploreScreen from "@/components/screens/explore-screen"
+import BottomNav from "@/components/bottom-nav"
 import useStore from "@/store/useStore"
 
 export default function ExplorePage() {
   const router = useRouter()
-  const { user, setUser, setSelectedResource } = useStore()
+  const { user, setUser } = useStore()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -27,12 +27,14 @@ export default function ExplorePage() {
     router.push(`/${route}`)
   }
 
-  const handleResourceSelect = (resource) => {
-    setSelectedResource(resource)
-    router.push(`/resource/${resource.id}`)
-  }
-
   if (!user) return null
 
-  return <ExploreScreen user={user} onNavigate={handleNavigate} onResourceSelect={handleResourceSelect} />
+  return (
+    <>
+      <div className="pb-20">
+        <ExploreScreen user={user} onNavigate={handleNavigate} />
+      </div>
+      <BottomNav />
+    </>
+  )
 }

@@ -103,23 +103,13 @@ export default function ResourceDetailScreen({
         });
       }
 
-      // Get actual file from storage
-      const { data: fileData } = await supabase.storage
-        .from("resources")
-        .createSignedUrl(resource.storage_path, 3600);
-
-      if (fileData?.signedUrl) {
-        // Create download link
-        const a = document.createElement("a");
-        a.href = fileData.signedUrl;
-        a.download = resource.title;
-        a.target = "_blank";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        throw new Error("Could not generate download link");
-      }
+      const url = `https://https://vmfjidjxdofmdonivzzp.supabase.co/storage/v1/object/public/resources/${resource.storage_path}`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = resource.title || "download";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       toast({
         title: "Download Complete",

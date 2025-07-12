@@ -82,16 +82,37 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
 
     setLoading(true);
     try {
-      // In a real app, this would download the actual file
-      toast({
-        title: "Download Started",
-        description: "Your resource is being downloaded.",
-      });
+      // Check if already downloaded to prevent duplicates
+      const { data: existingDownload } = await supabase
+        .from("downloads")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("resource_id", resource.id)
+        .single();
+
+      if (!existingDownload) {
+        // Add to downloads table
+        await supabase.from("downloads").insert({
+          user_id: user.id,
+          resource_id: resource.id,
+          downloaded_at: new Date().toISOString(),
+        });
+      }
+
+      // Simulate file download
+      const blob = new Blob([`Downloaded: ${resource.title}`], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${resource.title}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
-      // Record download analytics
-      await supabase.from("downloads").insert({
-        user_id: user.id,
-        resource_id: resource.id,
+      toast({
+        title: "Download Complete",
+        description: "Your resource has been downloaded successfully.",
       });
     } catch (error) {
       toast({
@@ -117,14 +138,14 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
 
     setLoading(true);
     try {
-      // Create purchase record
-      const { error: purchaseError } = await supabase.from("purchases").insert({
-        user_id: user.id,
+      // Create transaction record
+      const { error: transactionError } = await supabase.from("transactions").insert({
+        buyer_id: user.id,
         resource_id: resource.id,
         amount: resource.price,
       });
 
-      if (purchaseError) throw purchaseError;
+      if (transactionError) throw transactionError;
 
       // Update wallet balance
       const { error: walletError } = await supabase
@@ -134,15 +155,24 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
 
       if (walletError) throw walletError;
 
-      // Update seller's wallet
-      const { error: sellerError } = await supabase.rpc("increment_seller_balance", {
-        seller_id: resource.user_id,
-        amount: resource.price * 0.9, // 10% platform fee
-      });
+      // Add to downloads automatically after purchase
+      const { data: existingDownload } = await supabase
+        .from("downloads")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("resource_id", resource.id)
+        .single();
 
-      if (sellerError) throw sellerError;
+      if (!existingDownload) {
+        await supabase.from("downloads").insert({
+          user_id: user.id,
+          resource_id: resource.id,
+          downloaded_at: new Date().toISOString(),
+        });
+      }
 
       setIsOwned(true);
+      fetchUserWallet(); // Refresh wallet balance
       toast({
         title: "Purchase Successful!",
         description: "You can now download this resource.",

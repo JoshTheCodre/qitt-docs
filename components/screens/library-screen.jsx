@@ -27,7 +27,7 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
 
   const fetchDownloads = async () => {
     const { data } = await supabase
-      .from("transactions")
+      .from("downloads")
       .select(`
         resources (
           id,
@@ -40,7 +40,7 @@ export default function LibraryScreen({ user, onNavigate, onResourceSelect }) {
           created_at
         )
       `)
-      .eq("buyer_id", user.id)
+      .eq("user_id", user.id)
 
     if (data) {
       const resources = data.map((item) => item.resources).filter(Boolean)

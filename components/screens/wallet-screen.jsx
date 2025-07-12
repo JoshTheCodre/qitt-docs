@@ -16,6 +16,7 @@ export default function WalletScreen({ user, onNavigate }) {
   const [showAddFundsModal, setShowAddFundsModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const [customAmount, setCustomAmount] = useState("")
 
   useEffect(() => {
     fetchWalletData()
@@ -64,6 +65,39 @@ export default function WalletScreen({ user, onNavigate }) {
       toast({
         title: "💰 Funds Added Successfully!",
         description: `₦${amount.toLocaleString()} has been added to your wallet via ${method}.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Payment Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCustomAmountAdd = async () => {
+    if (!customAmount) return
+
+    setLoading(true)
+    try {
+      // Simulate payment processing
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      const { error } = await supabase
+        .from("wallets")
+        .update({ balance: balance + parseFloat(customAmount) })
+        .eq("user_id", user.id)
+
+      if (error) throw error
+
+      setBalance(balance + parseFloat(customAmount))
+      setCustomAmount("")
+
+      toast({
+        title: "💰 Funds Added Successfully!",
+        description: `₦${parseFloat(customAmount).toLocaleString()} has been added to your wallet.`,
       })
     } catch (error) {
       toast({
@@ -162,6 +196,32 @@ export default function WalletScreen({ user, onNavigate }) {
               <p className="text-xs text-gray-600">Transactions</p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Custom Amount Input */}
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Custom Amount</h3>
+          <div className="flex space-x-3">
+            <div className="flex-1">
+              <input
+                type="number"
+                placeholder="Enter amount"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <Button
+              onClick={handleCustomAmountAdd}
+              disabled={loading || !customAmount}
+              className="bg-green-500 hover:bg-green-600 text-white px-6"
+            >
+              {loading ? "Adding..." : "Add"}
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Enter any amount to add to your wallet balance
+          </p>
         </div>
 
         {/* Recent Transactions */}

@@ -18,8 +18,47 @@
 }
 
 body {
-  background-color: var(--light-grey);
-}
+    color: rgb(var(--foreground));
+    background: var(--background);
+  }
+
+  /* Fix for toast and shadcn component transparency */
+  .toast, 
+  [data-sonner-toast],
+  [data-radix-toast-viewport],
+  .ui-toast,
+  .sonner-toast {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    opacity: 1 !important;
+  }
+
+  .toast[data-type="error"],
+  [data-sonner-toast][data-type="error"] {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+  }
+
+  .toast[data-type="success"],
+  [data-sonner-toast][data-type="success"] {
+    background: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  /* Fix dialog and modal backgrounds */
+  .dialog-content,
+  [data-radix-dialog-content],
+  .modal-content {
+    background: white !important;
+    opacity: 1 !important;
+  }
+
+  /* Fix overlay backgrounds */
+  .dialog-overlay,
+  [data-radix-dialog-overlay],
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.5) !important;
+  }
 
 .primary-button {
   background-color: var(--accent-yellow);

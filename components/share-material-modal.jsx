@@ -14,7 +14,7 @@ export default function ShareMaterialModal({ isOpen, onClose, resource }) {
 
   if (!resource) return null;
 
-  const shareUrl = `${window.location.origin}/resource/${resource.id}`;
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/resource/${resource.id}`;
   const shareText = `Check out this resource: ${resource.title} - ${resource.price === 0 ? 'Free' : `₦${resource.price.toLocaleString()}`}`;
 
   const handleCopyLink = async () => {

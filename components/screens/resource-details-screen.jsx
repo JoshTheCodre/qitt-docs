@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -109,7 +108,7 @@ export default function ResourceDetailsScreen({ user, resource, onNavigate, onBa
   const handleShare = async () => {
     try {
       const shareUrl = `${window.location.origin}/resource/${resource.id}`;
-      
+
       if (navigator.share) {
         await navigator.share({
           title: resource.title,
@@ -271,7 +270,7 @@ export default function ResourceDetailsScreen({ user, resource, onNavigate, onBa
             </div>
 
             {/* Performance Metrics */}
-            <Card className="bg-white/90 backdrop-blur border-0 shadow-lg">
+            <Card className="bg-white border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center text-gray-900">
                   <BarChart3 className="w-5 h-5 mr-2" />

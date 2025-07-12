@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import InstallAppButton from "@/components/install-app-button";
 
 const departments = [
   "Computer Science",
@@ -120,6 +121,9 @@ export default function AuthScreen() {
             {isLogin ? "Sign in to your account" : "Create your student account"}
           </p>
         </div>
+
+        {/* Install App Button */}
+        <InstallAppButton className="mb-6" />
 
         {/* Auth Form */}
         <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">

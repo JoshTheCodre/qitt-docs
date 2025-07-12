@@ -453,14 +453,7 @@ export default function UploadScreen({ user, onNavigate }) {
                           Free
                         </Button>
                       </div>
-                      <Input
-                        type="number"
-                        placeholder="Or enter custom price"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        className="rounded-xl border-gray-200 h-12"
-                        min="0"
-                      />
+                      
                     </div>
                   </div>
 

@@ -1,21 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Settings, LogOut, Edit, Upload, Download } from "lucide-react"
+import { Settings, LogOut, Edit, Upload, Download, Award } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import TopNav from "@/components/top-nav"
 import { useToast } from "@/hooks/use-toast"
+import { getUserTier } from "@/lib/tier-system"
 
 export default function ProfileScreen({ user, onNavigate }) {
   const [profile, setProfile] = useState(null)
   const [stats, setStats] = useState({ uploads: 0, downloads: 0, earnings: 0 })
+  const [tierInfo, setTierInfo] = useState(null)
   const { toast } = useToast()
 
   useEffect(() => {
     fetchProfile()
     fetchStats()
+    fetchTierInfo()
   }, [user.id])
 
   const fetchProfile = async () => {
@@ -53,6 +57,16 @@ export default function ProfileScreen({ user, onNavigate }) {
     })
   }
 
+  const fetchTierInfo = async () => {
+    const { count: uploadCount } = await supabase
+      .from("resources")
+      .select("*", { count: "exact", head: true })
+      .eq("uploader_id", user.id)
+
+    const tier = getUserTier(uploadCount || 0)
+    setTierInfo(tier)
+  }
+
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) {
@@ -84,6 +98,35 @@ export default function ProfileScreen({ user, onNavigate }) {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">{profile?.name || "User"}</h2>
           <p className="text-gray-600">{profile?.email}</p>
         </div>
+
+        {/* Tier Info Card */}
+        {tierInfo && (
+          <Card className="rounded-2xl card-shadow bg-gradient-to-r from-purple-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Award className="w-5 h-5" />
+                    <h3 className="font-bold">{tierInfo.name} Tier</h3>
+                    <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                      Level {tierInfo.level}
+                    </Badge>
+                  </div>
+                  <p className="text-purple-100 text-sm">
+                    {stats.uploads}/{tierInfo.uploadLimit} uploads used
+                  </p>
+                  <p className="text-purple-100 text-xs mt-1">
+                    Price range: {tierInfo.priceRange}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{tierInfo.level}</div>
+                  <div className="text-purple-200 text-xs">Tier Level</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-4">

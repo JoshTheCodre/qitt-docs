@@ -9,20 +9,40 @@ import { Card, CardContent } from "@/components/ui/card"
 export default function InstallAppButton({ className = "" }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
 
   useEffect(() => {
+    // Check if app is already installed
+    const checkInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        setIsInstalled(true)
+        return
+      }
+    }
+
+    checkInstalled()
+
     const handler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      setShowInstallPrompt(true)
+      if (!isInstalled) {
+        setShowInstallPrompt(true)
+      }
+    }
+
+    const installedHandler = () => {
+      setIsInstalled(true)
+      setShowInstallPrompt(false)
     }
 
     window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', installedHandler)
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler)
+      window.removeEventListener('appinstalled', installedHandler)
     }
-  }, [])
+  }, [isInstalled])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return
@@ -37,7 +57,7 @@ export default function InstallAppButton({ className = "" }) {
     setDeferredPrompt(null)
   }
 
-  if (!showInstallPrompt) return null
+  if (!showInstallPrompt || isInstalled) return null
 
   return (
     <Card className={`rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 border-0 text-white ${className}`}>

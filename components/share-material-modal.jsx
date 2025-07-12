@@ -1,113 +1,120 @@
 
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Share2, Copy, Check, Link, MessageCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/hooks/use-toast"
+import { useState } from "react";
+import { Share2, Copy, MessageCircle, Mail, Link } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
-export default function ShareMaterialModal({ resource, onClose }) {
-  const [copied, setCopied] = useState(false)
-  const { toast } = useToast()
+export default function ShareMaterialModal({ isOpen, onClose, resource }) {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
-  const shareUrl = `${window.location.origin}/resource/${resource.id}`
-  
-  const shareMessage = `Check out "${resource.title}" on StudyHub! ${resource.price === 0 ? 'It\'s free!' : `Only ₦${resource.price.toLocaleString()}`} ${shareUrl}`
+  if (!resource) return null;
 
-  const copyToClipboard = async () => {
+  const shareUrl = `${window.location.origin}/resource/${resource.id}`;
+  const shareText = `Check out this resource: ${resource.title} - ${resource.price === 0 ? 'Free' : `₦${resource.price.toLocaleString()}`}`;
+
+  const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
       toast({
         title: "Link copied!",
-        description: "Share link has been copied to clipboard.",
-      })
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
+        description: "Share link has been copied to clipboard",
+      });
+    } catch (error) {
       toast({
         title: "Failed to copy",
-        description: "Please copy the link manually.",
+        description: "Please copy the link manually",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const shareToWhatsApp = () => {
-    const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`
-    window.open(url, '_blank')
-  }
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`${shareText}\n${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
 
-  const shareToTwitter = () => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`
-    window.open(url, '_blank')
-  }
+  const handleEmailShare = () => {
+    const subject = encodeURIComponent(`Check out: ${resource.title}`);
+    const body = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: resource.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          handleCopyLink();
+        }
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-white rounded-2xl">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Share Material</h3>
-            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2">
+            <Share2 className="w-5 h-5" />
+            <span>Share Resource</span>
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Resource Info */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold text-sm mb-1">{resource.title}</h3>
+            <p className="text-xs text-gray-600">{resource.department} • Level {resource.level}</p>
+            <p className="text-sm font-bold text-blue-600 mt-1">
+              {resource.price === 0 ? 'Free' : `₦${resource.price.toLocaleString()}`}
+            </p>
           </div>
 
-          <div className="space-y-4">
-            {/* Material Preview */}
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <h4 className="font-semibold text-gray-900 text-sm">{resource.title}</h4>
-              <p className="text-gray-600 text-xs mt-1">{resource.department} • Level {resource.level}</p>
-              <p className="text-blue-600 font-bold text-sm mt-1">
-                {resource.price === 0 ? "Free" : `₦${resource.price.toLocaleString()}`}
-              </p>
-            </div>
-
-            {/* Share URL */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Share Link</label>
-              <div className="flex space-x-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  className="rounded-xl flex-1"
-                />
-                <Button
-                  onClick={copyToClipboard}
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
-            </div>
-
-            {/* Quick Share Options */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quick Share</label>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={shareToWhatsApp}
-                  variant="outline"
-                  className="flex-1 rounded-xl"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp
-                </Button>
-                <Button
-                  onClick={shareToTwitter}
-                  variant="outline"
-                  className="flex-1 rounded-xl"
-                >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Twitter
-                </Button>
-              </div>
+          {/* Share URL */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Share Link</label>
+            <div className="flex space-x-2">
+              <Input value={shareUrl} readOnly className="text-xs" />
+              <Button onClick={handleCopyLink} variant="outline" size="sm">
+                <Copy className="w-4 h-4" />
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+
+          {/* Share Options */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button onClick={handleWhatsAppShare} variant="outline" className="flex items-center space-x-2">
+              <MessageCircle className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </Button>
+            
+            <Button onClick={handleEmailShare} variant="outline" className="flex items-center space-x-2">
+              <Mail className="w-4 h-4" />
+              <span>Email</span>
+            </Button>
+            
+            <Button onClick={handleNativeShare} variant="outline" className="flex items-center space-x-2 col-span-2">
+              <Share2 className="w-4 h-4" />
+              <span>More Options</span>
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

@@ -3,6 +3,7 @@ run = "npm run dev"
 
 [nix]
 channel = "stable-24_05"
+packages = ["postgresql_12"]
 
 [deployment]
 run = ["sh", "-c", "npm run dev"]
@@ -28,6 +29,7 @@ localPort = 3004
 externalPort = 3000
 
 [workflows]
+runButton = "Run"
 
 [[workflows.workflow]]
 name = "Run"

@@ -22,12 +22,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import ShareMaterialModal from "@/components/share-material-modal";
 
 export default function ResourceDetailScreen({ user, resource, onNavigate, onBack }) {
   const [loading, setLoading] = useState(false);
   const [userWallet, setUserWallet] = useState(null);
   const [isOwned, setIsOwned] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -215,6 +217,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setShowShareModal(true)}
               className="rounded-full w-10 h-10 p-0"
             >
               <Share className="w-5 h-5" />
@@ -256,7 +259,16 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
 
             {/* Action Buttons */}
             <div className="flex space-x-3">
-              {resource.price === 0 || isOwned ? (
+              {resource.price === 0 ? (
+                <Button
+                  onClick={handleDownload}
+                  disabled={loading}
+                  className="bg-white text-blue-600 hover:bg-blue-50 font-semibold flex-1"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {loading ? "Downloading..." : "Download Free"}
+                </Button>
+              ) : isOwned ? (
                 <Button
                   onClick={handleDownload}
                   disabled={loading}
@@ -272,7 +284,7 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
                   className="bg-white text-blue-600 hover:bg-blue-50 font-semibold flex-1"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {loading ? "Processing..." : "Buy Now"}
+                  {loading ? "Processing..." : `Buy for ₦${resource.price.toLocaleString()}`}
                 </Button>
               )}
             </div>
@@ -415,6 +427,13 @@ export default function ResourceDetailScreen({ user, resource, onNavigate, onBac
           </CardContent>
         </Card>
       </div>
+
+      {/* Share Modal */}
+      <ShareMaterialModal 
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        resource={resource}
+      />
     </div>
   );
 }

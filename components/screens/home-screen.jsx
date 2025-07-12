@@ -225,7 +225,8 @@ export default function HomeScreen({ user, onNavigate }) {
               {trendingResources.slice(0, 4).map((resource) => (
                 <Card
                   key={resource.id}
-                  className="rounded-xl card-shadow hover:shadow-lg transition-shadow cursor-pointer"
+                  className="rounded-xl card-shadow hover:shadow-lg transition-shadow cursor-pointer bg-white"
+                  onClick={() => onNavigate(`resource/${resource.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="w-full h-20 bg-orange-100 rounded-lg mb-3 flex items-center justify-center">
@@ -246,8 +247,7 @@ export default function HomeScreen({ user, onNavigate }) {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              ))}</div>
           )}
 
           {/* For You Section */}

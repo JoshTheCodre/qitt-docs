@@ -86,16 +86,14 @@ export default function ResourceDetailScreen({
 
     setLoading(true);
     try {
-      // Check if already downloaded to prevent duplicates
       const { data: existingDownload } = await supabase
         .from("downloads")
         .select("id")
         .eq("user_id", user.id)
         .eq("resource_id", resource.id)
-        .single();
+        .maybeSingle();
 
       if (!existingDownload) {
-        // Add to downloads table
         await supabase.from("downloads").insert({
           user_id: user.id,
           resource_id: resource.id,
@@ -103,7 +101,7 @@ export default function ResourceDetailScreen({
         });
       }
 
-      const url = `https://https://vmfjidjxdofmdonivzzp.supabase.co/storage/v1/object/public/resources/${resource.storage_path}`;
+      const url = `https://vmfjidjxdofmdonivzzp.supabase.co/storage/v1/object/public/resources/${resource.storage_path}`;
       const a = document.createElement("a");
       a.href = url;
       a.download = resource.title || "download";
@@ -115,6 +113,7 @@ export default function ResourceDetailScreen({
         title: "Download Complete",
         description: "Your resource has been downloaded successfully.",
       });
+      console.log("Download URL:", url);
     } catch (error) {
       toast({
         title: "Download Failed",
